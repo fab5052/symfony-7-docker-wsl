@@ -20,8 +20,8 @@ services:
         environment:
             MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-toor}
             MYSQL_DATABASE: ${DB_DATABASE:-project}
-            MYSQL_USER: ${DB_USER:-user}
-            MYSQL_PASSWORD: ${DB_PASSWORD:-resu}
+            MYSQL_USER: ${DB_USER:-admin}
+            MYSQL_PASSWORD: ${DB_PASSWORD:-Afpa1234}
         ports:
             - ${DB_PORT:-3306}:${DB_PORT:-3306}
 
@@ -30,8 +30,8 @@ services:
         container_name: phpmyadmin
         environment:
             - PMA_HOST=${DB_HOST:-mysql}
-            - PMA_USER=${DB_USER:-user}
-            - PMA_PASSWORD=${DB_PASSWORD:-resu}
+            - PMA_USER=${DB_USER:-admin}
+            - PMA_PASSWORD=${DB_PASSWORD:-Afpa1234}
         links:
             - mysql
         ports:
