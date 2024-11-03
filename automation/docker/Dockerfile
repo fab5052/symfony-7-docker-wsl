@@ -43,7 +43,7 @@ RUN wget https://get.symfony.com/cli/installer -O - | bash \
     && mv /root/.symfony5/bin/symfony /usr/local/bin/symfony
 
 # Composer
-COPY ./automation/scripts/composer-setup.sh 
+COPY ./automation/scripts/composer-setup.sh /tmp/
 RUN bash /composer-setup.sh
 
 # APCU
