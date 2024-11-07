@@ -1,109 +1,64 @@
-name: Pipeline-CI
+# Ce workflow utilise des actions qui ne sont pas certifiées par GitHub.
+# Elles sont fournies par un tiers et régies par
+# des conditions d’utilisation du service, une politique de confidentialité et un support distincts.
+# documentation en ligne.
+
+# GitHub recommande d’épingler les actions à un SHA de commit.
+# Pour obtenir une version plus récente, vous devez mettre à jour le SHA.
+# Vous pouvez également référencer une balise ou une branche, mais l’action peut changer sans avertissement.
+
+name: Publish Docker image
 
 on:
-  push:
-    branches:
-      - '*'
+  release:
+    types: [published]
 
 jobs:
-  ci:
+  push_to_registries:
+    name: Push Docker image to multiple registries
     runs-on: ubuntu-latest
-    continue-on-error: false
-    
-    services:
-      mysql:
-        image: mysql
-        env:
-          MYSQL_PASSWORD: Admin1234
-        ports:
-          - "3306:3306"
-        options: >-
-          --health-cmd "mysqladmin ping --silent"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
     steps:
-      # Checks out your repository
-      - uses: actions/checkout@v2
+      - name: Check out the repo
+        uses: actions/checkout@v4
 
-      # Setup PHP environment
-      - name: Setup PHP, extensions and composer
-        uses: shivammathur/setup-php@v2
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
         with:
-          php-version: '8.0'
-          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, json
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Cache dependencies
-      - name: Cache Composer dependencies
-        uses: actions/cache@v2
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
-          path: vendor
-          key: ${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Install Composer dependencies
-      - name: Install Composer dependencies
-        run: composer install --no-interaction --no-progress
-
-      # Setup Node.js environment
-      - name: Setup Node.js
-        uses: actions/setup-node@v1
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          node-version: '12'
+          images: |
+            my-docker-hub-namespace/my-docker-hub-repository
+            ghcr.io/${{ github.repository }}
 
-      # Install npm dependencies and build assets
-      - name: Build assets with npm
-        run: npm install && npm run build
+      - name: Build and push Docker images
+        id: push
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-      # Install Symfony CLI
-      - name: Install Symfony CLI
-        run: |
-          curl -sS https://get.symfony.com/cli/installer | bash
-          mv /home/runner/.symfony/bin/symfony /usr/local/bin/symfony
-
-      # Check Symfony vulnerabilities
-      - name: Symfony Check Vulnerabilities
-        run: symfony check:security
-
-      # PHP CS Fixer
-      - name: Run PHP-CS-Fixer
-        run: |
-          composer require friendsofphp/php-cs-fixer
-          ./vendor/bin/php-cs-fixer fix --dry-run
-
-      # PHP Stan
-      - name: Run PHPStan
-        run: |
-          ./vendor/bin/simple-phpunit install
-          composer require phpstan/phpstan
-          composer require phpstan/extension-installer
-          composer config allow-plugins.phpstan/extension-installer true
-          composer require phpstan/phpstan-symfony
-          ./vendor/bin/phpstan analyse src --memory-limit 1G
-
-      # Lint YAML files
-      - name: Lint YAML files
-        run: ./bin/console lint:yaml config --parse-tags
-
-      # Lint Twig templates
-      - name: Lint Twig templates
-        run: ./bin/console lint:twig templates --env=prod
-
-      # Lint Parameters and Services
-      - name: Lint Parameters and Services
-        run: ./bin/console lint:container --no-debug
-
-      # Validate Doctrine schema
-      - name: Validate Doctrine schema
-        run: ./bin/console doctrine:schema:validate --skip-sync -vvv --no-interaction
-
-      # Run PHPUnit tests
-      - name: Run PHPUnit
-        env:
-          APP_ENV: test
-          DATABASE_URL: "mysql://admin:Afpa1234@mysql:3306/project?serverVersion=8.3.7&charset=utf8mb4"
-        run: |
-          symfony console doctrine:database:create --if-not-exists --no-interaction
-          symfony console doctrine:migrations:migrate --no-interaction
-          symfony console doctrine:fixtures:load --no-interaction
-          ./bin/phpunit
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
