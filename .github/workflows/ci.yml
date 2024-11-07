@@ -1,73 +1,77 @@
 name: Pipeline-CI
 
 on:
+ release:
+  types: [published]
   push:
     branches:
       - '*'
-
-jobs:
   ci:
-    runs-on: ubuntu-latest
-    continue-on-error: false
-    services:
+  jobs:
+  push_to_registry:
+       name: Push Docker image to Docker Hub
+  
+  runs-on: ubuntu-latest
+  continue-on-error: false
+  services:
       postgres:
-        image: postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - "5432:5432"
-        options: >-
-          --health-cmd pg_isready
+       image: mysql
+       env:
+         MYSQL_PASSWORD: Admin1234
+       ports:
+          - "3306:3306"
+       options: >-
+          --health-cmd mysql_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    steps:
+       steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+       - uses: actions/checkout@v2
       
       # https://github.com/shivammathur/setup-php (community)
-      - name: Setup PHP, extensions and composer with shivammathur/setup-php
-        uses: shivammathur/setup-php@v2
-        with:
+       - name: Setup PHP, extensions and composer with shivammathur/setup-php
+         uses: shivammathur/setup-php@v2
+         with:
           extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, dom, filter, gd, iconv, json, mbstring, pdo
           
-      - name: Cache multiple paths
-        uses: actions/cache@v2
-        with:
+       - name: Cache multiple paths
+         uses: actions/cache@v2
+         with:
           path: |
             vendor
           key: ${{ runner.os }}-${{ hashFiles('composer.lock') }}
           
-      - name: "Composer install"
-        run: composer install --no-interaction --no-progress
+       - name: "Composer install"
+         run: composer install --no-interaction --no-progress
       
-      - name: Set Node.js 12
-        uses: actions/setup-node@v1
-        with:
+       - name: Set Node.js 12
+         uses: actions/setup-node@v1
+         with:
           version: 12.x
       
-      - name: npm
-        run: npm install && npm run build
+       - name: npm
+         run: npm install && npm run build
 
       # Install Symfony CLI
-      - name: Symfony CLI
-        run: |
+       - name: Symfony CLI
+         run: |
             curl -sS https://get.symfony.com/cli/installer | bash
             mv /home/runner/.symfony/bin/symfony /usr/local/bin/symfony
         
       # Check vulnerabilities
-      - name: Symfony Check Vulnerabilities
-        run: symfony check:security
+       - name: Symfony Check Vulnerabilities
+         run: symfony check:security
         
       # PHP CS FIXER
-      - name: PHP-CS-Fixer
-        run: |
+       - name: PHP-CS-Fixer
+         run: |
            composer require friendsofphp/php-cs-fixer
            ./vendor/bin/php-cs-fixer fix --dry-run
            
       # PHP STAN
-      - name: PHP Stan
-        run: |
+       - name: PHP Stan
+         run: |
            ./vendor/bin/simple-phpunit install
            composer require phpstan/phpstan
            composer require phpstan/extension-installer
@@ -75,23 +79,23 @@ jobs:
            composer require phpstan/phpstan-symfony
            ./vendor/bin/phpstan analyse src --memory-limit 1G
            
-      - name: Lint YAML files
-        run: ./bin/console lint:yaml config --parse-tags
+       - name: Lint YAML files
+         run: ./bin/console lint:yaml config --parse-tags
 
-      - name: Lint Twig templates
-        run: ./bin/console lint:twig templates --env=prod
+       - name: Lint Twig templates
+         run: ./bin/console lint:twig templates --env=prod
 
-      - name: Lint Parameters and Services
-        run: ./bin/console lint:container --no-debug
+       - name: Lint Parameters and Services
+         run: ./bin/console lint:container --no-debug
 
-      - name: Lint Doctrine entities
-        run: ./bin/console doctrine:schema:validate --skip-sync -vvv --no-interaction
+       - name: Lint Doctrine entities
+         run: ./bin/console doctrine:schema:validate --skip-sync -vvv --no-interaction
 
-      - name: PHP Unit
-        run: |
+       - name: PHP Unit
+         run: |
            APP_ENV=test symfony console --no-interaction doctrine:database:create
            APP_ENV=test symfony console --no-interaction d:m:m
            APP_ENV=test symfony console --no-interaction d:f:l --no-interaction 
            ./bin/phpunit
-        env:
+         env:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/app_test?serverVersion=13&charset=utf8
