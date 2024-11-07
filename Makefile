@@ -54,6 +54,6 @@ reset-test:
 .PHONY: reset-test
 
 docker-build-and-push:
-	docker build . -f ./docker/Dockerfile -t bricefa5052/symfony-7-docker-wsl
-	docker push 
+	docker build . -f ./automation/docker/Dockerfile -t bricefa5052/symfony-7-docker-wsl
+	docker push bricefa5052/symfony-7-docker-wsl
 .PHONY: docker-build-and-push
