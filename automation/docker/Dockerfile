@@ -58,8 +58,7 @@ RUN pecl install xdebug-3.3.2 \
     && echo 'xdebug.client_host=host.docker.internal' >> /usr/local/etc/php/php.ini \
     && docker-php-ext-enable xdebug
 
-RUN set -eux; \
-	mkdir -p var/cache var/log; \
+RUN mkdir -p var/cache var/log; \
 	composer dump-autoload --classmap-authoritative --no-dev; \
 	composer dump-env prod; \
 	composer run-script --no-dev post-install-cmd; \
